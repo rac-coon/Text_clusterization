@@ -1,23 +1,23 @@
 import os
 import docx
+import pandas as pd
 import spacy
 from sklearn.feature_extraction.text import TfidfVectorizer
 
+text_path = "texts/small/CULTUR"
+
 # Получение путей к файлам
-path = "texts/PYTTYR/"
-dirs = os.listdir(path)
-for file in dirs:
-    if file.find('.docx') == -1:
-        dirs.remove(file)
+def get_files_path():
+    dirs = os.listdir(text_path)
+    for file in dirs:
+        if file.find('.docx') == -1:
+            dirs.remove(file)
+    # ограничение количества файлов для проверки результатов
+    doc_names = ['198.docx', '199.docx', '200.docx']
+    return doc_names
 
-# ограничение количества файлов для проверки результатов
-dirs = ['198.docx', '199.docx', '200.docx']
-
-# Работа с каждым файлом
-docs = []
-for file in dirs:
-    active_path = path + file
-
+def doc_to_string(doc_name):
+    active_path = text_path + doc_name
     # чтение текста из документа
     doc = docx.Document(active_path)
     all_paras = doc.paragraphs
@@ -25,27 +25,28 @@ for file in dirs:
     for paragraph in all_paras:
         # разделение абзацев пробелом для корректного результата лемматизации
         text_from_doc += paragraph.text + ' '
+    return text_from_doc
 
+def nomralization(text_from_doc):
     # лемматизация
     spacy.prefer_gpu()
     nlp = spacy.load("ru_core_news_sm")
     lemmatization = nlp(text_from_doc)
-
     # список типов слов, которые необходимо удалить
     stop_types = ['PUNCT', 'SPACE', 'ADP', 'AUX', 'CCONJ', 'DET', 'INTJ', 'NUM', 'SCONJ', 'SYM']
-
     # создание чистого текста без стоп слов
     clear_text = ''
     for token in lemmatization:
         # token.is_alpha проверят является ли строка буквенной, потому что числа могут расцениваться как прилагательные
         if token.pos_ not in stop_types and (token.is_stop is not True) and token.is_alpha:
-            clear_text += token.lemma_ + ' '
-    # добавление отформатированного текста в массив
-    docs.append(clear_text)
+            clear_text += token.lemma_
+    return clear_text
 
-# tf-tdf
-tfidf = TfidfVectorizer()
-# This is equivalent to fit followed by transform, but more efficiently
-X = tfidf.fit_transform(docs)
-print(X)
+def tfidf_realization(corpus):
+    tfidf_vectorizer = TfidfVectorizer(use_idf=True)
+    vectors = tfidf_vectorizer.fit_transform(clear_text)
+    first_vector = vectors[0]
+    df = pd.DataFrame(first_vector.T.todense(), index=tfidf_vectorizer.get_feature_names_out(), columns=['tfidf'])
+    print(df.sort_values(by=["tfidf"], ascending=False))
 
+#print(vectors.shape)
