@@ -1,6 +1,5 @@
 import os
 import docx
-import pandas as pd
 import spacy
 from sklearn.feature_extraction.text import TfidfVectorizer
 
@@ -13,7 +12,7 @@ def get_doc_names():
         if file.find('.docx') == -1:
             dirs.remove(file)
     # ограничение количества файлов для проверки результатов
-    doc_names = ['198.docx', '199.docx', '200.docx']
+    doc_names = ['1.docx', '2.docx', '3.docx']
     return doc_names
 
 def doc_to_string(doc_name):
@@ -35,21 +34,21 @@ def normalization(text_from_doc):
     # список типов слов, которые необходимо удалить
     stop_types = ['PUNCT', 'SPACE', 'ADP', 'AUX', 'CCONJ', 'DET', 'INTJ', 'NUM', 'SCONJ', 'SYM']
     # создание чистого текста без стоп слов
-    clear_text = []
+    clear_text = ''
     for token in lemmatization:
         # token.is_alpha проверят является ли строка буквенной, потому что числа могут расцениваться как прилагательные
         if token.pos_ not in stop_types and (token.is_stop is not True) and token.is_alpha:
-            clear_text.append(token.lemma_)
+            clear_text += token.lemma_ + ' '
     return clear_text
 
-def tfidf_realization(texts_array):
-    tfidf_vectorizer = TfidfVectorizer(lowercase=True, max_features=100, max_df=0.8, min_df=5, ngram_range=(1, 3))
-    vectors = tfidf_vectorizer.fit_transform(texts_array)
-    first_vector = vectors[0]
-    df = pd.DataFrame(first_vector.T.todense(), index=tfidf_vectorizer.get_feature_names_out(), columns=['tfidf'])
-    print(df.sort_values(by=["tfidf"], ascending=False))
-
-#print(vectors.shape)
+def tfidf_result(clear_texts):
+    tfidf = TfidfVectorizer()
+    vectors = tfidf.fit_transform(clear_texts)
+    # print('\nWord indexes:')
+    # print(tfidf.vocabulary_)
+    # display tf-idf values
+    print('\ntf-idf values:')
+    print(vectors)
 
 doc_names_list = get_doc_names()
 clear_texts = []
@@ -57,5 +56,5 @@ for doc in doc_names_list:
     text = doc_to_string(doc)
     clear_doc_text = normalization(text)
     clear_texts.append(clear_doc_text)
-tfidf_realization(clear_texts)
+tfidf_result(clear_texts)
 
