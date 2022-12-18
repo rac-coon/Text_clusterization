@@ -4,10 +4,10 @@ import pandas as pd
 import spacy
 from sklearn.feature_extraction.text import TfidfVectorizer
 
-text_path = "texts/small/CULTUR"
+text_path = "texts/small/CULTUR/"
 
 # Получение путей к файлам
-def get_files_path():
+def get_doc_names():
     dirs = os.listdir(text_path)
     for file in dirs:
         if file.find('.docx') == -1:
@@ -27,7 +27,7 @@ def doc_to_string(doc_name):
         text_from_doc += paragraph.text + ' '
     return text_from_doc
 
-def nomralization(text_from_doc):
+def normalization(text_from_doc):
     # лемматизация
     spacy.prefer_gpu()
     nlp = spacy.load("ru_core_news_sm")
@@ -35,18 +35,27 @@ def nomralization(text_from_doc):
     # список типов слов, которые необходимо удалить
     stop_types = ['PUNCT', 'SPACE', 'ADP', 'AUX', 'CCONJ', 'DET', 'INTJ', 'NUM', 'SCONJ', 'SYM']
     # создание чистого текста без стоп слов
-    clear_text = ''
+    clear_text = []
     for token in lemmatization:
         # token.is_alpha проверят является ли строка буквенной, потому что числа могут расцениваться как прилагательные
         if token.pos_ not in stop_types and (token.is_stop is not True) and token.is_alpha:
-            clear_text += token.lemma_
+            clear_text.append(token.lemma_)
     return clear_text
 
-def tfidf_realization(corpus):
-    tfidf_vectorizer = TfidfVectorizer(use_idf=True)
-    vectors = tfidf_vectorizer.fit_transform(clear_text)
+def tfidf_realization(texts_array):
+    tfidf_vectorizer = TfidfVectorizer(lowercase=True, max_features=100, max_df=0.8, min_df=5, ngram_range=(1, 3))
+    vectors = tfidf_vectorizer.fit_transform(texts_array)
     first_vector = vectors[0]
     df = pd.DataFrame(first_vector.T.todense(), index=tfidf_vectorizer.get_feature_names_out(), columns=['tfidf'])
     print(df.sort_values(by=["tfidf"], ascending=False))
 
 #print(vectors.shape)
+
+doc_names_list = get_doc_names()
+clear_texts = []
+for doc in doc_names_list:
+    text = doc_to_string(doc)
+    clear_doc_text = normalization(text)
+    clear_texts.append(clear_doc_text)
+tfidf_realization(clear_texts)
+
