@@ -1,5 +1,6 @@
 import os
 import docx
+import sklearn.preprocessing
 import spacy
 from sklearn.feature_extraction.text import TfidfVectorizer
 import matplotlib
@@ -17,25 +18,32 @@ import scipy.cluster.hierarchy as shc
 from matplotlib import pyplot as plt
 from sklearn_som.som import SOM
 from sklearn.cluster import KMeans
-from fcmeans import FCM
+from sklearn.model_selection import cross_val_score
+from sklearn import datasets
 
 
-text_path = "texts/rand/"
-doc_names = []
-# doc_names = ['1000.docx', '1001.docx', '1002.docx', '1004.docx', '2000.docx',
-#              '3000.docx', '3001.docx', '3002.docx', '3003.docx', '3004.docx']
+docs_path = "texts\small\\"
 
 # Получение путей к файлам
-def get_doc_names():
-    dirs = os.listdir(text_path)
-    for file in dirs:
-        if file.find('.docx') == -1:
-            dirs.remove(file)
-        doc_names.append(file)
-    return doc_names
+def get_docs_info():
+    doc_data = []
+    for dirname, _, filenames in os.walk(docs_path):
+        text_id = 0
+        TSNE_ = 0.0
+        for filename in filenames:
+            doc_theme = os.path.join(dirname.replace(docs_path, ""))
+            doc_name = filename
+# DELETE DELETE DELETE DELETE DELETE DELETE DELETE DELETE DELETE DELETE DELETE DELETE [DEBUG_TEXTS]
+            if doc_theme == 'CULTUR' and (int(doc_name.replace('.docx', '')) < 30):
+# DELETE DELETE DELETE DELETE DELETE DELETE DELETE DELETE DELETE DELETE DELETE DELETE [DEBUG_TEXTS]
+                doc_text = doc_to_string(doc_name, doc_theme)
+                doc_data.append([doc_theme, doc_text, text_id, TSNE_])
+                text_id += 1
+    docs_df = pd.DataFrame(doc_data, columns=['theme', 'text', 'text_id', 'TSNE'])
+    return docs_df
 
-def doc_to_string(doc_name):
-    active_path = text_path + doc_name
+def doc_to_string(doc_name, doc_theme):
+    active_path = docs_path + doc_theme + '\\' + doc_name
     # чтение текста из документа
     try:
         doc = docx.Document(active_path)
@@ -45,6 +53,7 @@ def doc_to_string(doc_name):
             # разделение абзацев пробелом для корректного результата лемматизации
             text_from_doc += paragraph.text + ' '
     except:
+        print(f"[DEBUG EXCEPTION] {doc_theme}//{doc_name}")
         return ''
     return text_from_doc
 
@@ -154,7 +163,6 @@ def result_out(clear_text):
         for doc in clear_text:
            o_file.write(doc + '\n')
 
-
 def result_get():
     clear_texts = []
     with open('clear_text.txt', 'r+', encoding='utf-8') as o_file:
@@ -162,17 +170,44 @@ def result_get():
             clear_texts.append(doc)
     return clear_texts
 
+def new_result_out(docs_df):
+    docs_df.to_pickle('culture_small_25.pkl')
+
+def new_result_get():
+    return pd.read_pickle('culture_small_25.pkl')
+
 
 if __name__ == '__main__':
-    # doc_names_list = get_doc_names()
-    # clear_texts = []
-    # for doc in doc_names_list:
-    #     text = doc_to_string(doc)
-    #     clear_doc_text = normalization(text)
-    #     clear_texts.append(clear_doc_text)
-    clear_texts = result_get()
+    # Не используется при загрузке данных из файла
+    '''
+    docs_df = get_docs_info()
+    for text in docs_df['text']:
+        clear_text = normalization(text)
+        docs_df['text'] = docs_df['text'].replace(text, clear_text)
+    '''
+    # Загрузка данных из файла
+    docs_df = new_result_get()
+
+    # код для будущего понимания, не используется
+    '''
+    # create a object of term-frequency, inverse document frequency
+    tfidf = TfidfVectorizer(min_df=5, lowercase=True, max_features=21, ngram_range=(1, 2), sublinear_tf=True)
+    # transform each lebel into vector
+    feature = tfidf.fit_transform(docs_df.text).toarray()
+    labels = docs_df.text_id
+    '''
+    # код для будущего понимания, не используется. Готовый датасет от sklearn
+    '''
+    data = datasets.load_digits()
+    print(f'{data.data}\n############\n{data.target}')
+    https://learn.saylor.org/mod/book/view.php?id=55626&chapterid=41483
+    '''
+
+    # Старое обращение к функциям
+    '''
     vectors, x_embedded, x_principal = tfidf(clear_texts)
-    # dendrogramm(x_principal)
-    # agglomerative(x_principal)
-    # maps(x_embedded)
+    dendrogramm(x_principal)
+    agglomerative(x_principal)
+    maps(x_embedded)
     kmeans(vectors, x_embedded)
+    '''
