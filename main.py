@@ -1,6 +1,5 @@
 import os
 import docx
-import sklearn.preprocessing
 import spacy
 from sklearn.feature_extraction.text import TfidfVectorizer
 import matplotlib
@@ -13,17 +12,12 @@ simplefilter("ignore", ClusterWarning)
 import pandas as pd
 from sklearn.cluster import AgglomerativeClustering
 from sklearn.manifold import TSNE
-import numpy as np
 import scipy.cluster.hierarchy as shc
 from matplotlib import pyplot as plt
 from sklearn_som.som import SOM
 from sklearn.cluster import KMeans
-from sklearn.model_selection import cross_val_score
 from yellowbrick.text import TSNEVisualizer
-import time
 
-pd.set_option('display.max_rows', None)
-pd.set_option('display.max_columns', None)
 docs_path = "texts\small\\"
 
 # Получение путей к файлам
@@ -37,14 +31,12 @@ def get_docs_info():
             extension = os.path.splitext(filename)[1]
             if extension != '.docx':
                 continue
-# DELETE DELETE DELETE DELETE DELETE DELETE DELETE DELETE DELETE DELETE DELETE DELETE [DEBUG_TEXTS]
-            # if doc_theme == 'CULTUR' and (int(doc_name.replace('.docx', '')) < 30):
-            # if int(doc_name.replace('.docx', '')) < 30:
-# DELETE DELETE DELETE DELETE DELETE DELETE DELETE DELETE DELETE DELETE DELETE DELETE [DEBUG_TEXTS]
             doc_text = doc_to_string(doc_name, doc_theme)
-            doc_data.append([doc_theme, doc_text, text_metadata[0], text_metadata[1], text_metadata[1]])
+            doc_data.append([doc_theme, doc_text, text_metadata[0], text_metadata[1],
+                             text_metadata[1], text_metadata[1], text_metadata[1], text_metadata[1]])
             text_metadata = [data+1 for data in text_metadata]
-    docs_df = pd.DataFrame(doc_data, columns=['theme', 'text', 'text_id', 'text_x', 'text_y'])
+    docs_df = pd.DataFrame(doc_data, columns=['theme', 'text', 'text_id', 'text_x', 'text_y',
+                                              'ac', 'som', 'km'])
     return docs_df
 
 def doc_to_string(doc_name, doc_theme):
@@ -93,7 +85,7 @@ def tfidf(docs_df):
         counter += 1
     # Create the visualizer and draw the vectors
     tsne = TSNEVisualizer()
-    tsne.fit(tfidf_array)
+    test = tsne.fit(tfidf_array)
     tsne.poof()
     return tfidf_vectors
 
@@ -107,10 +99,16 @@ def agglomerative(docs_df):
     plt.show()
     # визуализация
     ac = AgglomerativeClustering(n_clusters=3, linkage='ward', affinity='euclidean')
+    ac_array = ac.fit_predict(text_xy)
     plt.figure(figsize=(6, 6))
-    plt.scatter(text_xy['text_x'], text_xy['text_y'], c=ac.fit_predict(text_xy), cmap='rainbow', marker='o')
+    plt.scatter(text_xy['text_x'], text_xy['text_y'], c=ac_array, cmap='rainbow', marker='o')
     plt.title('Agglomerative Clustering\nКол-во кластеров: {}'.format(ac.n_clusters))
     plt.show()
+    # сохранение номера кластера в датафрейме
+    counter = 0.0
+    for cluster in ac_array:
+        docs_df['ac'] = docs_df['ac'].replace(counter, cluster)
+        counter += 1
 
 def maps(docs_df):
     xy_df = docs_df[['text_x', 'text_y']].copy()
@@ -123,6 +121,11 @@ def maps(docs_df):
     plt.title('Self-organizing maps')
     plt.show()
 
+    counter = 0.0
+    for cluster in predictions:
+        docs_df['som'] = docs_df['som'].replace(counter, cluster)
+        counter += 1
+
     '''
     m - The shape along dimension 0 (vertical) of the SOM
     n - The shape along dimesnion 1 (horizontal) of the SOM
@@ -132,7 +135,7 @@ def maps(docs_df):
 
 def kmeans(docs_df, vectors):
     km = KMeans(
-        n_clusters=5, init='random',
+        n_clusters=3, init='random',
         n_init=10, max_iter=500,
         tol=1e-04, random_state=0
     )
@@ -183,6 +186,11 @@ def kmeans(docs_df, vectors):
     plt.grid()
     plt.show()
 
+    counter = 0.0
+    for cluster in y_km:
+        docs_df['km'] = docs_df['km'].replace(counter, cluster)
+        counter += 1
+
 def result_out(docs_df, filename):
     docs_df.to_csv(filename)
 
@@ -191,36 +199,22 @@ def result_get(filename):
 
 
 if __name__ == '__main__':
-    # docs_df = get_docs_info()
-    # counter = 1
-    # # Не используется при загрузке данных из файла
-    # for text in docs_df['text']:
-    #     print(f'text {counter}')
-    #     counter += 1
-    #     clear_text = normalization(text)
-    #     docs_df['text'] = docs_df['text'].replace(text, clear_text)
-    # result_out(docs_df, '600_texts.csv')
-    docs_df = result_get('600_texts.csv')
+    docs_df = get_docs_info()
+    counter = 1
+    # Не используется при загрузке данных из файла
+    for text in docs_df['text']:
+        print(f'text {counter}')
+        counter += 1
+        clear_text = normalization(text)
+        docs_df['text'] = docs_df['text'].replace(text, clear_text)
+    # сохранение результата без кластеризации
+    result_out(docs_df, '600_texts.csv')
+    #
+    #docs_df = result_get('600_texts.csv')
     #vectors = np.fromfile('tfidf.csv')
     vectors = tfidf(docs_df)
     agglomerative(docs_df)
     kmeans(docs_df, vectors)
-    # maps(docs_df)
-
-
-
-    # код для будущего понимания, не используется. Готовый датасет от sklearn
-    '''
-    data = datasets.load_digits()
-    print(f'{data.data}\n############\n{data.target}')
-    https://learn.saylor.org/mod/book/view.php?id=55626&chapterid=41483
-    '''
-
-    # Старое обращение к функциям
-    '''
-    vectors, x_embedded, x_principal = tfidf(clear_texts)
-    dendrogramm(x_principal)
-    agglomerative(x_principal)
-    maps(x_embedded)
-    kmeans(vectors, x_embedded)
-    '''
+    maps(docs_df)
+    # сохранение результатов с кластеризацией
+    result_out(docs_df, '600_full.csv')
